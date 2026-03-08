@@ -9,9 +9,10 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 RAW_DATA_PATH = os.path.join("data", "raw")
+LOADER_PATH = os.path.join("data", "testLoaders")
 RAND_NUM = 25
 
-def grabRaw(folder_path=RAW_DATA_PATH):
+def grab_raw(folder_path=RAW_DATA_PATH):
     # Grab all subjects    
     folder_list = glob.glob(os.path.join(folder_path, "*/"))
     full_features = []
@@ -28,13 +29,13 @@ def grabRaw(folder_path=RAW_DATA_PATH):
             
             # 2. Class Extraction: (9)
             labels = df.iloc[:, 9].values
-            
-            # 3. Clean Data: Remove unmarked data (class == '0')
-            valid_indices = (labels != 0)
+
+            # 3. Clean Data: Remove unmarked data and palm data
+            valid_indices = (labels != 0) & (labels!= 7)
             features = features[valid_indices]
             labels = labels[valid_indices]
             
-            # Shift labels 1-7 -> 0-6 for NN compatibility
+            # Shift labels 1-6 -> 0-5 for NN compatibility
             labels = labels - 1
             
             # append to full list of features & labels
@@ -43,7 +44,7 @@ def grabRaw(folder_path=RAW_DATA_PATH):
     return full_features, full_lables
 
 
-def preProccess(X_raw, y_raw):
+def pre_proccess(X_raw, y_raw):
     scaler = StandardScaler()
     X_raw = scaler.fit_transform(X_raw)
 
@@ -60,26 +61,28 @@ def preProccess(X_raw, y_raw):
 
 
     return X_all, y_all
-# creates perfect windows
-# moving forward may be good to do majority rule instead
-def createWindows(X, y, window_size=64, stride=1):
+
+
+def create_windows_pure(X, y, window_size, stride):
     X_win = []
     y_win = []
+    loss_data = 0
     for i in range(0, len(y) - window_size + 1, stride):
         X_temp_window = X[i : i + window_size] 
         y_temp_window = y[i : i + window_size] 
         perfect, jump_val = isPure_window(y_temp_window)
-
+        
         if not perfect:
+            loss_data += 1
             # INCOMPLETE, not needed with data this large.
             # might be helpful with FT on user data
             # jump by index instead of stride to not waste data 
             continue
         
-        # transpose so shape becomes (8, 64) instead of (64, 8)
+        # We transpose so shape becomes (8, WINDOW_SIZE) instead of (WINDOW_SIZE, 8)
         X_win.append(X_temp_window.T) 
         y_win.append(y[i])
-        
+    print(f"Data Loss to impure windows: {loss_data}")
     return np.array(X_win), np.array(y_win)
 
 
@@ -94,21 +97,42 @@ def isPure_window(y_win):
     return True, 0  
 
 
-def createTestLoader(X_win, y_win, split=0.2):
-    _, X_test, _, y_test = train_test_split(
-        X_win,
-        y_win,
-        test_size=split,
-        random_state=RAND_NUM,
-        stratify=y_win,
-    )
+def create_windows_majority(X, y, window_size, stride):
+    X_win = []
+    y_win = []
+    lost_data = 0
+    for i in range(0, len(y) - window_size + 1, stride):
+        X_temp_window = X[i : i + window_size] 
+        y_temp_window = y[i : i + window_size] 
+        label = majorityClass_window(y_temp_window)
+        
+        if label is None:  
+            lost_data += 1
+            continue
+        
+        X_win.append(X_temp_window.T) 
+        y_win.append(label)
 
-    plt.hist(y_test, bins=range(8), align='left', rwidth=0.8)
-    plt.xticks(range(7), ['Rest', 'Fist', 'Flex', 'Exten', 'Radial', 'Ulnar', 'Palm'])
-    plt.title("Distribution of Gesture Classes")
-    plt.ylabel("Number of TEST Window Samples")
-    plt.show()
+    print(f"Data Loss to impure windows: {lost_data}")
+    return np.array(X_win), np.array(y_win)
 
+
+def majorityClass_window(y_win):
+    counts = np.zeros(7)
+    size = len(y_win)
+
+    for val in y_win:
+        counts[int(val)] += 1
+
+    majLabel_idx = counts.argmax()
+
+    if counts[majLabel_idx] > size / 2:
+        return majLabel_idx  
+    
+    return None  
+
+
+def createTestLoader(X_test, y_test):
     test_data_tensor = TensorDataset(
         torch.from_numpy(X_test).float(), 
         torch.from_numpy(y_test).long()
@@ -122,26 +146,30 @@ def createTestLoader(X_win, y_win, split=0.2):
     return test_loader
 
 
-def main(split=0.2, window_size=64):
+def main(window_size, stride, window_type):
     print("------------------Collecting Data------------------")
-    X_raw, y_raw = grabRaw()
+    X_test_raw, y_test_raw = grab_raw()
     print("-------------------Pre-Processing------------------")
-    X_raw, y_raw = preProccess(X_raw, y_raw)
+    X_test_raw, y_test_raw = pre_proccess(X_test_raw, y_test_raw)
     print("------------------Creating Windows-----------------")
     print(f"Window Size: {window_size}")
-    X_win, y_win = createWindows(X_raw, y_raw, window_size=window_size)
-    plt.hist(y_win, bins=range(8), align='left', rwidth=0.8)
-    plt.xticks(range(7), ['Rest', 'Fist', 'Flex', 'Exten', 'Radial', 'Ulnar', 'Palm'])
+    if window_type=='pure':
+        print("Creating PURE Windowed TESTING data")
+        X_test, y_test = create_windows_pure(X_test_raw, y_test_raw, window_size=window_size, stride=stride)
+    elif window_type=='majority':
+        print("Creating MAJORITY Windowed TESTING data")
+        X_test, y_test = create_windows_majority(X_test_raw, y_test_raw, window_size=window_size, stride=stride)
+    else: 
+        print("NOT a valid window type.")
+        print("Please set WINDOW_TYPE to \'pure\' OR \'majority\'")
+    plt.hist(y_test, bins=range(7), align='left', rwidth=0.8)
+    plt.xticks(range(6), ['Rest', 'Fist', 'Flex', 'Exten', 'Radial', 'Ulnar'])
     plt.title("Distribution of Gesture Classes")
     plt.ylabel("Number of TOTAL Window Samples")
     plt.show()
     print("----------------Creating TestLoader----------------")
-    # can update split value to decide what % of data dedicated to test eval
-    print(f"Test Split: {split}")
-    test_loader = createTestLoader(X_win, y_win, split=split)
-    loader_dir = os.path.join("data", "testLoaders")
-    os.makedirs(loader_dir, exist_ok=True) 
-    test_loader_path = os.path.join(loader_dir, f"testLoader_{split}_{window_size}.pth")
+    test_loader = createTestLoader(X_test, y_test)
+    test_loader_path = os.path.join(LOADER_PATH, f"testLoader_{window_type[0].upper()}W_W{window_size}_S{stride}.pth")
     try:
         torch.save(test_loader, test_loader_path)
         print(f"Successfully created TestLoader at \n{test_loader_path}")

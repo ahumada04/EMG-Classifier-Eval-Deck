@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # Erick
-class SimpleEMGFANet(nn.Module):
-    def __init__(self, num_classes=7):
-        super(SimpleEMGFANet, self).__init__()
+class CNN_FANet(nn.Module):
+    def __init__(self, num_classes=6):
+        super(CNN_FANet, self).__init__()
         
         # Layer 1: Look for local patterns across the 8 channels
         # Input shape: (Batch, 8, Window_Size)

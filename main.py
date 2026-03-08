@@ -3,44 +3,34 @@ import datetime
 import torch
 from torch.utils.tensorboard import SummaryWriter
 import modelClasses
-import eval
+from eval import Eval
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# PLEASE FILL IN THE FOLLOWING
-# Split of data you WANT for TESTINT
-# range (0, 1)
-split = 0.2
+# PLEASE DEFINE ALL VARIABLES BELOW ACCORDING TO YOUR MODEL
 # Window size used in YOUR TRAINING
-window_size = 64
-# Epochs used in YOUR TRAINING 
-epochs = 5
-# Algorithim you used in YOUR TRAINING
-alg = "CNN"
-# Model Class used in YOUR TRAINING
+window_size = 256
+# Stride length used in YOUR TRAINING
+stride=64
+# Window type used in YOUR TRAINING, can ONLY be pure or majority
+window_type='pure'
 # MUST be copied into modelClasses.py file
-model = modelClasses.SimpleEMGFANet()
-
-# Shouldn't have to touch these :D
-MODELNAME = f"{alg}_E{epochs}_W{window_size}"
-MODELPATH = os.path.join("models", MODELNAME+".pth")
-LOGPATH = os.path.join("logs", MODELNAME+"_"+datetime.datetime.now().strftime("%m%d"))
-TESTLOADERPATH = os.path.join("data", "testLoaders", f"testLoader_{split}_{window_size}.pth")
-
-# Writer needed to view data on TensorBoard :D
-# If TensorBoard isn't updating, look here first D:
-writer = SummaryWriter(LOGPATH)
+model = modelClasses.CNN_FANet()
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Please ensure your model saved in models dir matches EXACTLY with your model class name
+MODELPATH = os.path.join("models", f"{model.__class__.__name__}.pth")
+LOGPATH = os.path.join("logs", "master")
+TESTLOADERPATH = os.path.join("data", "testLoaders", f"testLoader_{window_type[0].upper()}W_W{window_size}_S{stride}.pth")
 
 
-# TODO
-# 1. Actually ensure writer works...
 def main():
     state_dict = torch.load(MODELPATH, map_location=torch.device('cpu'))
     model.load_state_dict(state_dict)
-    test_loader = torch.load(TESTLOADERPATH)
-    y_true, y_pred = eval.testPredictions(model, test_loader)
-    # sets model.eval() for you :D
-    eval.runEval(y_true, y_pred, writer, epochs)
+    writer = SummaryWriter(LOGPATH)
+    # will also print a classification report in terminal 
+    eval = Eval(model, writer, window_size, stride, window_type)
+    eval.write_cm()
+    eval.write_mcc()
 
 
 if __name__ == "__main__":

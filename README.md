@@ -27,21 +27,21 @@ Your trained model file must be manually copied into the `models/` directory of 
 ### Requirements
 
 - Your model **must** have been trained on **subjects 1 through 28**.
-- The model file must be saved as a PyTorch state dict (`.pth` file).
+- The model file must be saved as a PyTorch state dict (`.pt` file).
 - The filename **must exactly match** your model's class name.
 
 ### Instructions
 
-1. Locate your saved `.pth` model file from your training environment.
+1. Locate your saved `.pt` model file from your training environment.
 2. Copy it into the `models/` directory:
 
 ```
 project-root/
 └── models/
-    └── YourModelClassName.pth   ← place your file here
+    └── YourModelClassName.pt   ← place your file here
 ```
 
-3. Ensure the filename matches your model class name exactly. For example, if your model class is `CNN_FANet`, the file must be named `CNN_FANet.pth`.
+3. Ensure the filename matches your model class name exactly. For example, if your model class is `CNN_FANet`, the file must be named `CNN_FANet.pt`.
 
 > ⚠️ **Important:** If the filename does not match the class name exactly (including capitalization), the pipeline will fail to load the model.
 
@@ -109,7 +109,7 @@ project-root/
 ├── modelClasses.py          ← copy your model class here
 ├── eval.py                  ← evaluation logic (do not modify)
 ├── models/
-│   └── YourModelName.pth   ← copy your trained model here
+│   └── YourModelName.pt   ← copy your trained model here
 ├── data/
 │   └── testLoaders/         ← pre-built test loaders (do not modify)
 └── logs/

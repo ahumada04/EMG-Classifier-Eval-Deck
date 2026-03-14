@@ -50,7 +50,7 @@ class Eval:
     def write_mcc(self):
         mcc = matthews_corrcoef(self.y_true, self.y_pred)  # ranges -1 to 1, 1 being perfect
         print(f"MCC: {mcc:.4f}")
-        self.writer.add_scalar(f'MCC{self.model.__class__.__name__}_{self.config_name}', mcc)
+        self.writer.add_scalar(f'MCC/{self.model.__class__.__name__}_{self.config_name}', mcc)
 
 
     # Confusion Matrix

@@ -83,7 +83,13 @@ def create_windows_pure(X, y, window_size, stride):
         X_win.append(X_temp_window.T) 
         y_win.append(y[i])
     print(f"Data Loss to impure windows: {loss_data}")
-    return np.array(X_win), np.array(y_win)
+    
+    X_win = np.array(X_win)  
+    y_win = np.array(y_win)
+    # Uncomment when workign with Tony Model: LSTMClassifier
+    # X_win =np.swapaxes(X_win, 1,2)
+    # print(X_win.shape)
+    return X_win, y_win
 
 
 def isPure_window(y_win):
